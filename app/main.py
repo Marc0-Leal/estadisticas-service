@@ -11,11 +11,11 @@ Prefijo de rutas: /api/estadisticas
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from .auth import usuario_actual
-from .db import conexion, dict_cursor, esperar_bd
+from .db import conexion, dict_cursor, esperar_bd, ping
 
 
 @asynccontextmanager
@@ -41,11 +41,25 @@ app.add_middleware(
 )
 
 
-# TODO (alumno): implementar las rutas de salud que usará Kubernetes:
-#   - liveness: ¿el proceso está vivo? (respuesta simple).
-#   - readiness: ¿está listo para recibir tráfico? Debe verificar la BD.
-# Luego configurar livenessProbe/readinessProbe en el Deployment de EKS.
+@app.get("/livez")
+def liveness():
+    """
+    Liveness: ¿el proceso está vivo?
+    No depende de la BD. Si esto falla, Kubernetes reinicia el pod.
+    """
+    return {"status": "ok"}
 
+
+@app.get("/readyz")
+def readiness():
+    """
+    Readiness: ¿está listo para recibir tráfico?
+    Verifica conexión a PostgreSQL. Si falla, Kubernetes saca el pod
+    del balanceo sin reiniciarlo.
+    """
+    if ping():
+        return {"status": "ok", "db": "connected"}
+    raise HTTPException(status_code=503, detail="Base de datos no disponible")
 
 @app.get("/api/estadisticas/mias")
 def mis_estadisticas(usuario: dict = Depends(usuario_actual)):
