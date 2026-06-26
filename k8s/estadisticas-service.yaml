@@ -37,6 +37,11 @@ spec:
                 secretKeyRef:
                   name: casino-secrets
                   key: DB_NAME
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: casino-secrets
+                  key: JWT_SECRET
             - name: CORS_ORIGIN
               value: "*"
           resources:
